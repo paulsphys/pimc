@@ -347,6 +347,34 @@ class OpenMove: public MoveBase {
 };
 
 // ========================================================================  
+// Canonical Open Move Class 
+// ========================================================================  
+/** 
+ * A derived class which performs a canonical open move, creating a worm with a well
+ * defined head and tail on the same time slice
+ */
+class CanonicalOpenMove: public MoveBase {
+
+    public:
+        CanonicalOpenMove(Path &, ActionBase *, MTRand &, 
+                ensemble _operateOnConfig=DIAGONAL, bool _varLength=true);
+        ~CanonicalOpenMove();
+
+        bool attemptMove();
+        static const std::string name;
+        std::string getName() {return name;}
+
+    private:
+        beadLocator headBead, tailBead; // The temporary head and tail locatores
+        int gapLength;                  // The proposed WL length to remove 
+        int numLevels;                  // The 2^numLevels = num slices moved
+
+        void undoMove();                // Undo a move
+        void keepMove();                // keep the move
+
+};
+
+// ========================================================================  
 // Close Move Class 
 // ========================================================================  
 /** 
@@ -374,6 +402,33 @@ class CloseMove: public MoveBase {
         void keepMove();                // keep the move
 };
 
+// ========================================================================  
+// Canonical Close Move Class 
+// ========================================================================  
+/** 
+ * A derived class which performs a canonical close move, creating a diagonal world
+ * line configuration.
+ */
+class CanonicalCloseMove: public MoveBase {
+
+    public:
+        CanonicalCloseMove(Path &, ActionBase *, MTRand &, 
+                ensemble _operateOnConfig=OFFDIAGONAL, bool _varLength=true);
+        ~CanonicalCloseMove();
+
+        bool attemptMove();
+        static const std::string name;
+        std::string getName() {return name;}
+
+    private:
+        beadLocator headBead,tailBead;  // The temporary head and tail slices
+        int numLevels;                      // The 2^numLevels = num slices moved
+
+	DynamicArray <int,1> oldBeadOn;        // The old and new bead states
+
+        void undoMove();                // Undo a move
+        void keepMove();                // keep the move
+};
 // ========================================================================  
 // Insert Move Class 
 // ========================================================================  
