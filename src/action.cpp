@@ -1618,7 +1618,7 @@ std::array<double,2> NonLocalAction::U(int slice) {
     int numParticles = path.numBeadsAtSlice(slice);
 
     /* Initialize the separation histogram */
-    sepHist.fill(0);
+    //sepHist.fill(0);
 
     /* Calculate the total potential, including external and interaction
      * effects*/
