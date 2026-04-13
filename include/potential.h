@@ -1836,6 +1836,231 @@ class GrapheneLUT3DPotentialGenerate: public PotentialBase  {
 };
 #endif
 #if NDIM > 2
+// ========================================================================  
+// LeeBenzenePotential Class
+// ========================================================================  
+/** 
+ * @brief Implements an accurate ab-inito calculation for the Benzene-He potential energy
+ * @see https://doi.org/10.1063/1.1628217
+ *
+ * Author: Sutirtha Paul
+ * 
+ */
+class LeeBenzenePotential: public PotentialBase  {
+
+    public:
+        LeeBenzenePotential(const Container*);
+        ~LeeBenzenePotential();
+
+        /* Return the sum of the Lennard-Jones potential between the supplied
+         * particle and the fixed positions found in FILENAME. */
+        double V(const dVec &r);
+
+    private:
+        const Container *boxPtr;
+        double Lz;
+        double Lx;
+        double Ly;
+        double Wallcz;
+        double Wallcy; 
+        double Wallcx;
+        double invWallWidth;
+        const double r0 = 7.220527;
+	const float a = 0.572446;
+	const double c3 = 0.058387;
+        const double c4 = -6.914851;
+        const double c5 = -2.083808;
+        const double c6 = 85.429568;
+        const double c11 = -16.956997;
+        const double c12 = 0.568429;
+        const double c22 = 9.073184;
+        const double c13 = 1.821920;
+        const double c14 = 1.874776;
+        const double c23 = -0.098396;
+        const double c111 = -3.235122;
+        const double c112 = -2.631504;
+        const double c122 = 1.423777;
+        const double c113 = -2.117152;
+        
+	DynamicArray<std::array<double,4>,1> fixedParticles;      // The location of the fixed particles
+        DynamicArray<std::array<double,2>,1> atomArray;           // The interaction parameters for the fixed particles 
+        int numFixedParticles;              // The total number of fixed particles
+        int typesofatoms;                   // The various types of atom species
+
+	double w(double);
+        double wtilde(double);
+        double V2(double);
+        double V3(double,double);
+        double V4(double,double,double);
+
+};      
+
+inline double LeeBenzenePotential::w(double r) {
+        return 1 - exp(-a*(r - r0));
+}
+
+inline double LeeBenzenePotential::wtilde(double r) {
+        if (r >= r0)
+            return w(r);
+        else
+	    return 0;
+}
+
+inline double LeeBenzenePotential::V2(double r) {
+    double fval = w(r)*w(r) + c6*(pow(wtilde(r),6));
+    fval += c3*(pow(w(r),3)) + c4*(pow(w(r),4)) + c5*(pow(w(r),5));
+    return fval;
+}
+
+inline double LeeBenzenePotential::V3(double rk, double rl) {
+    double fval = c11*w(rk)*w(rl) + c22*(pow(w(rk),2))*(pow(w(rl),2));
+    fval += c12*(w(rk)*(pow(w(rl),2)) + w(rl)*(pow(w(rk),2)));
+    fval += c13*(w(rk)*(pow(w(rl),3)) + w(rl)*(pow(w(rk),3)));
+    fval += c14*(w(rk)*(pow(w(rl),4)) + w(rl)*(pow(w(rk),4)));
+    fval += c23*((pow(w(rk),2)*pow(w(rl),3)) + (pow(w(rl),2)*pow(w(rk),3)));
+    return fval;
+}
+
+inline double LeeBenzenePotential::V4(double rk, double rl, double rm) {
+    double fval = c111*w(rk)*w(rl)*w(rm);
+    fval += c122*(w(rk)*pow(w(rl),2)*pow(w(rm),2) + w(rl)*pow(w(rm),2)*pow(w(rk),2) + w(rm)*pow(w(rk),2)*pow(w(rl),2));
+    fval += c112*(w(rk)*w(rl)*pow(w(rm),2) + w(rk)*pow(w(rl),2)*w(rm) + pow(w(rk),2)*w(rl)*w(rm));
+    fval += c113*(w(rk)*w(rl)*pow(w(rm),3) + w(rk)*pow(w(rl),3)*w(rm) + pow(w(rk),3)*w(rl)*w(rm));
+    return fval;
+}
+
+#endif
+#if NDIM > 2
+// ========================================================================  
+// ShirkovBenzene Potential Class
+// ========================================================================  
+/** 
+ * @brief Implements an accurate ab-inito calculation for the Benzene-He potential energy
+ * @see https://doi.org/10.1021/acs.jpca.4c01491
+ *
+ * Author: Sutirtha Paul
+ * 
+ */
+class ShirkovBenzene: public PotentialBase  {
+
+    public:
+        ShirkovBenzene(const Container*);
+        ~ShirkovBenzene();
+
+        /* Return the sum of the Lennard-Jones potential between the supplied
+         * particle and the fixed positions found in FILENAME. */
+        double V(const dVec &r);
+
+    private:
+        const Container *boxPtr;
+        double Lz;
+        double Lx;
+        double Ly;
+        double Wallcz;
+        double Wallcy; 
+        double Wallcx;
+        double invWallWidth;
+        
+	const double re       = 3.565710000e+00;
+	const double ae       = 1.485672859e+00;
+	const double c0       = -1.312335657e+02;
+	const double v0       = 1.592094647e+03;
+	const double c3       = -4.497880474e+00;
+	const double c4       = -1.160510603e+00;
+	const double c5       = -3.574920218e+00;
+	const double c6       = -1.169708775e-01;
+	const double c7       = 0.0;
+	const double c8       = 0.0;
+	const double c12      = -2.894238936e-01;
+	const double c112     = 1.465193128e+00;
+	const double c1122    = -8.310247790e-01;
+	const double c1112    = 2.158143635e+00;
+	const double c11112   = 7.135910167e-01;
+	const double c11122   = 0.0;
+	const double c111112  = 0.0;
+	const double c111122  = 0.0;
+	const double c111222  = 0.0;
+	const double c123     = -1.036553121e+00;
+	const double c1123    = -6.340217244e-01;
+	const double c11223   = -6.320195633e-02;
+	const double c11123   = 0.0;
+	const double c112233  = 0.0;
+
+	const double reh     = 3.000000000e+00;
+	const double aeh     = 1.920910443e+00;
+	const double v0h     = 3.920606202e+02;
+	const double d3       = -1.789976234e+00;
+	const double d4       = 1.120849120e+00;
+	const double d5       = -4.676333910e-01;
+	const double d6       = -4.181953639e-02;
+	const double d12      = -1.161279955e+00;
+	const double d112     = 1.365346870e+00;
+	const double d1122    = -1.750118034e+00;
+	const double d1112    = 0.0;
+	const double dc12   = 0.0;
+	const double dc112   = 0.0;
+
+	const double r0       = 5.765366674e+00;
+	const double gama     = 1.671477473e+01;
+	const double DE       = 8.900000000e+01;
+
+	const double x1       = 2.290626821e+05;
+	const double x2       = 4.069217828e+06;
+	const double x3       = 9.542607077e+07;
+	const double x4       = 0.0;
+	const double x5       = -4.775615288e+04;
+	const double x6       = -1.263899296e+07;
+	const double x7       = -2.959330054e+08;
+	const double x8       = 0.0;
+	const double x9       = 9.511488779e+05;
+	const double x10      = 2.551023972e+08;
+	const double x11      = 0.0;
+	const double x12      = 1.883887454e+08;
+
+	std::vector<std::vector<double>> generate_benzene_geometry();
+	//blitz::Array <blitz::TinyVector<double,4>,1> fixedParticles;      // The location of the fixed particles
+        //int numFixedParticles;              // The total number of fixed particles
+        //int typesofatoms;                   // The various types of atom species
+
+}; 
+
+inline std::vector<std::vector<double>> ShirkovBenzene::generate_benzene_geometry() {
+    double rc = 1.3915;   // Carbon ring radius (Angstrom)
+    double rh = 1.080;    // C–H bond length (Angstrom)
+    double rh1 = rc + rh; // Hydrogen distance from center
+
+    // Constants for hexagonal arrangement
+    std::array<double, 6> ax = {1.0, 0.5, -0.5, -1.0, -0.5, 0.5};
+    std::array<double, 6> ay = {
+        0.0,
+        std::sqrt(3.0) / 2.0,
+        std::sqrt(3.0) / 2.0,
+        0.0,
+        -std::sqrt(3.0) / 2.0,
+        -std::sqrt(3.0) / 2.0
+    };
+
+    // 3 x 12 coordinate matrix initialized to 0
+    std::vector<std::vector<double>> coords(3, std::vector<double>(12, 0.0));
+
+    // Carbon atoms
+    for (int i = 0; i < 6; i++) {
+        coords[0][i] = ax[i] * rc;  // x
+        coords[1][i] = ay[i] * rc;  // y
+        // z stays 0
+    }
+
+    // Hydrogen atoms
+    for (int i = 0; i < 6; i++) {
+        coords[0][i + 6] = ax[i] * rh1;  // x
+        coords[1][i + 6] = ay[i] * rh1;  // y
+        // z stays 0
+    }
+
+    return coords;
+}
+#endif
+#if NDIM > 2
 // ========================================================================
 // GaussianProcess Potential Class
 // ========================================================================
