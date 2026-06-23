@@ -156,10 +156,16 @@ void Communicator::init(double _tau, bool outputWorldline, std::string _initName
 
 
     /* Determine the ensemble and unique parameter file std::string or dataname */
-    if (!constants()->canonical()) {
+    if (!constants()->canonical() && !constants()->canonicalworm()) {
         ensemble = "gce";
         dataName = str(format("%06.3f-%07.3f-%+08.3f-%7.5f-%s") % constants()->T() 
                 % constants()->L() % constants()->mu() % tau % constants()->id());
+    } else if (!constants()->canonical()) {
+	ensemble = "cwe";
+        dataName = str(format("%06.3f-%04d-%06.3f-%7.5f-%s") % constants()->T()
+                % constants()->initialNumParticles() 
+                % (1.0*constants()->initialNumParticles()/constants()->V()) 
+                % tau % constants()->id());
     }
     else {
         ensemble = "ce";
@@ -202,7 +208,7 @@ void Communicator::initFile(std::string type) {
     if (type.find("init") != std::string::npos ) {
 
         /* We need to determine the name of the state file.  i.e. does it need
-         * an integer appended after it? */
+          an integer appended after it? */
         std::string stateName = "state";
 
         /* If we have a numerical label, append it to the name of state */

@@ -107,6 +107,7 @@ class ConstantParameters
         bool wallClockOn() const {return wallClockOn_;}                     ///< Get wallclockOn
         uint32 wallClock() const {return wallClock_;}                       ///< Get wallclock limit
         bool canonical() const { return canonical_;}                        ///< Get ensemble
+        bool canonicalworm() const { return canonicalworm_;}                ///< Get ensemble
         bool window() const { return window_;}                              ///< Get window on/off
         bool startWithState() const { return startWithState_;}               ///< Are we starting from a state?
         int windowWidth() const { return windowWidth_;}                     ///< Get window 1/2 width
@@ -192,6 +193,7 @@ class ConstantParameters
         uint32 wallClock_;          // The wall clock limit in seconds
         bool wallClockOn_;          // Is the wall clock on?
         bool canonical_;            // Are we in the canonical ensemble?
+	bool canonicalworm_;	    // Are we using the canonical worm?
         bool window_;               // Are we using a particle number window?
         bool startWithState_;       // Are we starting from a supplied state?
         int windowWidth_;           // Half width of particle number window

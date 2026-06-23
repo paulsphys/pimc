@@ -403,6 +403,7 @@ void Setup::initParameters() {
     /* Initialize the physical options */
     oClass = "physical";
     params.add<bool>("canonical","perform a canonical simulation",oClass);
+    params.add<bool>("canonicalworm","perform a canonical simulation with the canonical worm",oClass);
     params.add<double>("mass,m","particle mass [amu]",oClass,4.0030);
     params.add<double>("density,n",str(format("initial density [angstroms^(-%d)]") % NDIM).c_str(),oClass);
     params.add<int>("number_particles,N","number of particles",oClass);

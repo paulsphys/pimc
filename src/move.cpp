@@ -2173,8 +2173,7 @@ bool CanonicalOpenMove::attemptMove() {
 
     /* We use the 'true' number of particles here because we are still diagonal, 
      * so it corresponds to the number of worldlines*/
-    double norm = (constants()->C() * constants()->Mbar() * path.worm.getNumBeadsOn())
-	    / totalrho0;
+    double norm = (constants()->C() * path.worm.getNumBeadsOn());
     /// actionPtr->rho0(sep,gapLength);
 
     /* We rescale to take into account different attempt probabilities */
@@ -2193,11 +2192,13 @@ bool CanonicalOpenMove::attemptMove() {
     path.worm.special2 = tailBead;
 
     /*Add a new bead and do a metropolis test*/
-
-    oldAction = actionPtr->potentialAction(headBead,tailBead);
-    beadIndex = path.addNextBead(headBead,newFreeParticlePosition(headBead))
+    //FIXME Need to break the prev link for the tail bead 
+    beadLocator beadIndex;
+    oldAction = actionPtr->barePotentialAction(headBead);
+    beadIndex = path.addNextBead(headBead,newFreeParticlePosition(headBead));
     path.worm.head = headBead;
-    newAction = actionPtr->barePotentialAction(beadIndex) 
+    newAction = actionPtr->barePotentialAction(beadIndex); 
+    norm /= actionPtr->rho0(beadIndex,headBead,gapLength);
     /* Now perform the metropolis acceptance test based on removing a chunk of
      * worldline. */
     if ( random.rand() < norm*exp(newAction - oldAction) ) {
@@ -2222,6 +2223,9 @@ void CanonicalOpenMove::keepMove() {
     totAccepted++;
     numAcceptedLevel(numLevels)++;
     
+    /*Update the link for the previous of the tail*/
+    path.prev(tailBead).fill(XXX);
+
     /* Update all the properties of the worm */
     path.worm.update(path,headBead,tailBead);
 
@@ -2238,6 +2242,7 @@ void CanonicalOpenMove::keepMove() {
 void CanonicalOpenMove::undoMove() {
 
     /* Reset the worm parameters */
+    path.next(headBead) = tailBead;
     path.worm.reset();
     path.worm.isConfigDiagonal = true;
     
@@ -2247,7 +2252,7 @@ void CanonicalOpenMove::undoMove() {
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
-// CLOSE MOVE CLASS ----------------------------------------------------------
+// CANONICAL CLOSE MOVE CLASS ----------------------------------------------------------
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
@@ -2309,22 +2314,17 @@ bool CanonicalCloseMove::attemptMove() {
 
   /* Compute the part of the acceptance probability that does not
    * depend on the change in potential energy */
-    double norm = totalrho0 /  
-        (constants()->C() * constants()->Mbar() * 
-         (path.worm.getNumBeadsOn()));
+    double norm = 1 / (constants()->C()  *  (path.worm.getNumBeadsOn()));
 
     /* We rescale to take into account different attempt probabilities */
     norm *= constants()->attemptProb("canonical open")/constants()->attemptProb("canonical close");
 
     /* Weight for ensemble */
-    norm *= actionPtr->ensembleWeight(path.worm.gap-1);
-
-    /* The change in the number sector */
-    double actionShift = log(norm)
+    //norm *= actionPtr->ensembleWeight(path.worm.gap-1);
 
     /* Generate a new new trajectory */
     beadLocator beadIndex;
-    beadIndex = Path::delBeadGetPrev(beadIndex)
+    beadIndex = path.delBeadGetPrev(headBead);
     path.next(beadIndex) = path.worm.tail;
     path.prev(path.worm.tail) = beadIndex;
 
@@ -2370,7 +2370,7 @@ void CanonicalCloseMove::keepMove() {
 void CanonicalCloseMove::undoMove() {
 
     /* FIXME: Need to check whether this activates the bead. Switch the links back */
-    path.next(path.prev(path.worm.tail)) = path.worm.head
+    path.next(path.prev(path.worm.tail)) = path.worm.head;
 
     path.next(path.worm.head).fill(XXX);
     path.prev(path.worm.tail).fill(XXX);

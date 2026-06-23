@@ -83,7 +83,8 @@ void ConstantParameters::initConstants(po::variables_map &params) {
 
     /* Are we working in the grand canonical ensemble? */
     canonical_ = !params["canonical"].empty();
-
+    canonicalworm_ = !params["canonicalworm"].empty();
+	    
     /* Are we saving a state file every bin? */
     saveStateFiles_ = params["no_save_state"].empty();
 
@@ -173,6 +174,8 @@ void ConstantParameters::initConstants(po::variables_map &params) {
         attemptProb_["open"] = 0.0;
         attemptProb_["insert"] = 0.0;
         attemptProb_["close"] = 0.0;
+        attemptProb_["canonical open"] = 0.0;
+        attemptProb_["canonical close"] = 0.0;
         attemptProb_["advance head"] = 0.0;
         attemptProb_["recede head"] = 0.0;
         attemptProb_["advance tail"] = 0.0;
@@ -187,10 +190,32 @@ void ConstantParameters::initConstants(po::variables_map &params) {
         attemptProb_["mid staging"] = 0.0;
         attemptProb_["swap break"] = 0.0;
     }
+    else if (canonicalworm_) {
+        attemptProb_["open"] = 0.0;
+        attemptProb_["insert"] = 0.0;
+        attemptProb_["close"] = 0.0;
+        attemptProb_["canonical open"] = 0.4;
+        attemptProb_["canonical close"] = 0.2;
+        attemptProb_["advance head"] = 0.0;
+        attemptProb_["recede head"] = 0.0;
+        attemptProb_["advance tail"] = 0.0;
+        attemptProb_["recede tail"] = 0.0;
+        attemptProb_["swap head"] = 0.1;
+        attemptProb_["swap tail"] = 0.1;
+        attemptProb_["remove"] = 0.0;
+        attemptProb_["diagonal"] = 0.49;
+        attemptProb_["center of mass"] = 0.11;
+        attemptProb_["displace"] = 0.0;
+        attemptProb_["end staging"] = 0.0;
+        attemptProb_["swap break"] = 0.0;
+        attemptProb_["mid staging"] = 0.0;
+    }
     else {
         attemptProb_["open"] = 0.4;
         attemptProb_["insert"] = 0.4;
         attemptProb_["close"] = 0.15;
+        attemptProb_["canonical open"] = 0.0;
+        attemptProb_["canonical close"] = 0.0;
         attemptProb_["advance head"] = 0.075 + 0.05*BOLTZMANNONS;
         attemptProb_["recede head"] = 0.075 + 0.05*BOLTZMANNONS;
         attemptProb_["advance tail"] = 0.075 + 0.05*BOLTZMANNONS;
@@ -207,26 +232,26 @@ void ConstantParameters::initConstants(po::variables_map &params) {
     }
 
     // Open + Insert + Diagonal + CoM Probability != 1
-    double totProb = attemptProb_["close"] + attemptProb_["advance head"] + attemptProb_["recede head"]
+    double totProb = attemptProb_["close"] + attemptProb_["canonical close"] + attemptProb_["advance head"] + attemptProb_["recede head"]
         + attemptProb_["advance tail"] + attemptProb_["recede tail"] + attemptProb_["remove"]
         + attemptProb_["swap head"] + attemptProb_["swap tail"] + attemptProb_["diagonal"] 
         + attemptProb_["center of mass"] + attemptProb_["displace"] + attemptProb_["end staging"] 
         + attemptProb_["mid staging"]+attemptProb_["swap break"];
 
     if (abs(totProb - 1.0) > EPS) {
-        std::cout << "Close + AdvanceHead + RecedeHead + AdvanceTail + RecedeTail + Remove + SwapHead " 
+        std::cout << "Close + Canonical Close + AdvanceHead + RecedeHead + AdvanceTail + RecedeTail + Remove + SwapHead " 
              << "+ SwapTail + Diagonal + CoM Probability != 1" << std::endl;
         std::cout << totProb << std::endl;
         exit(EXIT_FAILURE);
     }
     PIMC_ASSERT(totProb-1.0 < EPS);
 
-    totProb = attemptProb_["open"] + attemptProb_["insert"] + attemptProb_["diagonal"]
+    totProb = attemptProb_["open"] + attemptProb_["canonical open"] + attemptProb_["insert"] + attemptProb_["diagonal"]
        + attemptProb_["center of mass"] + attemptProb_["displace"] + attemptProb_["swap break"] 
        + attemptProb_["end staging"] + attemptProb_["mid staging"];
     
     if (abs(totProb - 1.0) > EPS) {
-        std::cout << "Open + Insert + Diagonal + CoM Probability != 1" << std::endl;
+        std::cout << "Open + Canonical Open + Insert + Diagonal + CoM Probability != 1" << std::endl;
         std::cout << totProb << std::endl;
         exit(EXIT_FAILURE);
     }
