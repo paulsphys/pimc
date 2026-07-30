@@ -460,7 +460,7 @@ void Setup::initParameters() {
         estimatorsToMeasure = {EnergyEstimator::name, NumberParticlesEstimator::name, DiagonalFractionEstimator::name};
 
         movesToPerform = {CenterOfMassMove::name, BisectionMove::name, OpenMove::name,
-            CloseMove::name, InsertMove::name, RemoveMove::name, AdvanceHeadMove::name, 
+            CloseMove::name, CanonicalOpenMove::name, CanonicalCloseMove::name, InsertMove::name, RemoveMove::name, AdvanceHeadMove::name, 
             RecedeHeadMove::name, AdvanceTailMove::name, RecedeTailMove::name, SwapHeadMove::name,
             SwapTailMove::name};
 

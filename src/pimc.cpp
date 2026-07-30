@@ -731,6 +731,7 @@ void PathIntegralMonteCarlo::step() {
         /* We run through all moves, making sure that we could have touched each bead at least once */
         for (int n = 0; n < numUpdates ; n++)  {
             moveName = update(random.rand(),n,pIdx);
+	    //std::cout << moveName << std::endl;
         }
 
         /* Perform all measurements */

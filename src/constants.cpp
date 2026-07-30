@@ -168,7 +168,7 @@ void ConstantParameters::initConstants(po::variables_map &params) {
     getC();
 
     /* Set the move probabilities */
-
+    std::cout<<canonicalworm_<<std::endl;
     /* At present, the pigs code has only diagonal moves */
     if (PIGS) {
         attemptProb_["open"] = 0.0;
@@ -191,6 +191,7 @@ void ConstantParameters::initConstants(po::variables_map &params) {
         attemptProb_["swap break"] = 0.0;
     }
     else if (canonicalworm_) {
+	std::cout<<"Do I get here in constanst.cpp?"<<std::endl;
         attemptProb_["open"] = 0.0;
         attemptProb_["insert"] = 0.0;
         attemptProb_["close"] = 0.0;
@@ -211,6 +212,7 @@ void ConstantParameters::initConstants(po::variables_map &params) {
         attemptProb_["mid staging"] = 0.0;
     }
     else {
+	std::cout << "I end up here??" <<std::endl;
         attemptProb_["open"] = 0.4;
         attemptProb_["insert"] = 0.4;
         attemptProb_["close"] = 0.15;

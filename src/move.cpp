@@ -153,17 +153,17 @@ inline void MoveBase::printMoveState(std::string state) {
 #ifdef DEBUG_WORM
 
     /* We make a list of all the beads contained in the worm */
-    Array <beadLocator,1> wormBeads;    // Used for debugging
+    DynamicArray <beadLocator,1> wormBeads;    // Used for debugging
     wormBeads.resize(path.worm.length+1);
-    wormBeads.fill(XXX);
+    wormBeads.fill(std::array<int, 2>{XXX, XXX});
 
     /* Output the worldline configuration */
     communicate()->file("debug")->stream() << "Move State: " << state 
-        << " (" << path.getTrueNumParticles() << ")" << endl;
+        << " (" << path.getTrueNumParticles() << ")" << std::endl;
     communicate()->file("debug")->stream() << "head " << path.worm.head[0] << " " << path.worm.head[1]
         << " tail " << path.worm.tail[0] << " " << path.worm.tail[1]
         << " length " << path.worm.length 
-        << " gap " << path.worm.gap << endl;
+        << " gap " << path.worm.gap << std::endl;
 
     if (!path.worm.isConfigDiagonal) {
         beadLocator beadIndex;
@@ -177,7 +177,7 @@ inline void MoveBase::printMoveState(std::string state) {
     }
 
     path.printWormConfig(wormBeads);
-    path.printLinks<fstream>(communicate()->file("debug")->stream());
+    path.printLinks<std::fstream>(communicate()->file("debug")->stream());
 #endif
 }
 
@@ -2137,7 +2137,7 @@ CanonicalOpenMove::~CanonicalOpenMove() {
 bool CanonicalOpenMove::attemptMove() {
 
     success = false;
-
+    //std::cout <<"Do I get here(1)?" << std::endl;
     /* Only perform a move if we have beads */
     if (path.worm.getNumBeadsOn() == 0) 
         return success;
@@ -2148,23 +2148,23 @@ bool CanonicalOpenMove::attemptMove() {
 
     /* Get the length of the proposed gap to open up. We only allow even 
      * gaps. */
-    //gapLength = 2*(1 + random.randInt(constants()->Mbar()/2-1));
-    //numLevels = int (ceil(log(1.0*gapLength) / log(2.0)-EPS));
-
+    gapLength = 1;
+    
     /* Randomly select the head bead, and make sure it is turned on, we only
      * allow the head or tail to live on even slices */
     /* THIS IS EXTREMELY IMPORTANT FOR DETAILED BALANCE */
     headBead[0] = 2*random.randInt(path.numTimeSlices/2-1);
     headBead[1] = random.randInt(path.numBeadsAtSlice(headBead[0])-1);
 
+    //std::cout << "Is it on? " << path.worm.beadOn(headBead) << std::endl;
     /* Find the tail bead */
     tailBead = path.next(headBead);
-
+    //std::cout << "Found Head and Tail? (2)" << std::endl;
     /* Get the current winding number of the chosen trajectory */
     double totalrho0;
     iVec wind;
     wind = sampleWindingSector(headBead,tailBead,gapLength,totalrho0);
-
+    //std::cout << "Found winding (3)" << std::endl;
     /* Determine the separation in this winding sector */
     dVec sep;
     sep = path(tailBead) - path(headBead) + wind*path.boxPtr->side;
@@ -2174,7 +2174,7 @@ bool CanonicalOpenMove::attemptMove() {
     /* We use the 'true' number of particles here because we are still diagonal, 
      * so it corresponds to the number of worldlines*/
     double norm = (constants()->C() * path.worm.getNumBeadsOn());
-    /// actionPtr->rho0(sep,gapLength);
+    actionPtr->rho0(sep,gapLength);
 
     /* We rescale to take into account different attempt probabilities */
     norm *= constants()->attemptProb("canonical close")/constants()->attemptProb("canonical open");
@@ -2185,27 +2185,31 @@ bool CanonicalOpenMove::attemptMove() {
     /* Increment the number of open moves and the total number of moves */
     numAttempted++;
     totAttempted++;
-    numAttemptedLevel(numLevels)++;
 
     /* The temporary head and tail are special beads */
     path.worm.special1 = headBead;
     path.worm.special2 = tailBead;
-
+    //std::cout << "Made beads special and incremented attempted probabilites (4)" << std::endl;
     /*Add a new bead and do a metropolis test*/
-    //FIXME Need to break the prev link for the tail bead 
     beadLocator beadIndex;
     oldAction = actionPtr->barePotentialAction(headBead);
+    //std::cout << "Got the old Action (5)" << std::endl;
+    path.next(headBead).fill(XXX);
+    path.prev(tailBead).fill(XXX);
     beadIndex = path.addNextBead(headBead,newFreeParticlePosition(headBead));
-    path.worm.head = headBead;
-    newAction = actionPtr->barePotentialAction(beadIndex); 
+    //std::cout << "Added new bead (6)" << std::endl;
+    path.worm.head = path.next(headBead);
+    path.worm.special1 = path.next(headBead);
+    //std::cout << path.worm.head[0] << "," << path.worm.head[1] << std::endl;
+    newAction = 0.5*actionPtr->barePotentialAction(beadIndex) + 0.5*actionPtr->barePotentialAction(tailBead);; 
     norm /= actionPtr->rho0(beadIndex,headBead,gapLength);
-    /* Now perform the metropolis acceptance test based on removing a chunk of
-     * worldline. */
-    if ( random.rand() < norm*exp(newAction - oldAction) ) {
+    if (random.rand() < norm*exp(newAction - oldAction)) {
+	    //std::cout << "Trying to keep move (7a)" << std::endl;
 	    keepMove();
 	    checkMove(1,-oldAction);
     }
     else {
+	    //std::cout << "Trying to get rid of move (7b)" << std::endl;
 	    undoMove();
 	    checkMove(2,0.0);
     }
@@ -2223,11 +2227,8 @@ void CanonicalOpenMove::keepMove() {
     totAccepted++;
     numAcceptedLevel(numLevels)++;
     
-    /*Update the link for the previous of the tail*/
-    path.prev(tailBead).fill(XXX);
-
     /* Update all the properties of the worm */
-    path.worm.update(path,headBead,tailBead);
+    path.worm.update(path,path.next(headBead),tailBead);
 
     /* The configuration with a worm is not diagonal */
     path.worm.isConfigDiagonal = false;
@@ -2242,6 +2243,7 @@ void CanonicalOpenMove::keepMove() {
 void CanonicalOpenMove::undoMove() {
 
     /* Reset the worm parameters */
+    path.prev(tailBead) = headBead;
     path.next(headBead) = tailBead;
     path.worm.reset();
     path.worm.isConfigDiagonal = true;
@@ -2289,24 +2291,22 @@ bool CanonicalCloseMove::attemptMove() {
     if (path.worm.getNumBeadsOn() == 0) 
         return success;
 
-    /* We first make sure we are in an off-diagonal configuration, and that that
-     * gap is neither too large or too small and that the worm cost is reasonable.
-     * Otherwise, we simply exit the move */
     checkMove(0,0.0);
-
-    /* Otherwise, proceed with the close move */
-    numLevels = int (ceil(log(1.0*path.worm.gap) / log(2.0)-EPS));
+    //std :: cout << "Do I get here (close) ? (1)" << std::endl;
 
     /* Increment the number of close moves and the total number of moves */
     numAttempted++;
-    numAttemptedLevel(numLevels)++;
     totAttempted++;
 
+    //std :: cout << "Do I get here (close) ? (2)" << std::endl;
+    
     /* Get the head and new 'tail' slices for the worldline length
      * to be closed.  These beads are left untouched */
     headBead = path.worm.head;
+    //std::cout << "Head bead" << headBead[0] << "," << headBead[1] << std::endl;
     tailBead = path.worm.tail;
-
+    //std::cout << path.prev(headBead)[0] << "," << path.prev(headBead)[1] << std::endl;
+    //std::cout << "Tail bead" << tailBead[0] << "," << tailBead[1] << std::endl;
     /* Sample the winding sector */
     double totalrho0;
     iVec wind;
@@ -2323,16 +2323,22 @@ bool CanonicalCloseMove::attemptMove() {
     //norm *= actionPtr->ensembleWeight(path.worm.gap-1);
 
     /* Generate a new new trajectory */
+    oldAction = 0.5*actionPtr->barePotentialAction(headBead) + 0.5*actionPtr->barePotentialAction(tailBead);
     beadLocator beadIndex;
     beadIndex = path.delBeadGetPrev(headBead);
-    path.next(beadIndex) = path.worm.tail;
+    //std::cout << beadIndex[0] << "," << beadIndex[1] << std::endl;
+    path.next(beadIndex) = tailBead;
+    //std::cout << "Do I get stuck here???" << std::endl;
     path.prev(path.worm.tail) = beadIndex;
+    //std::cout << "Or here???" << std::endl;
 
     /* Compute the action for the new trajectory */
-    newAction = actionPtr->potentialAction(headBead,tailBead);
-
+    newAction = actionPtr->barePotentialAction(tailBead); 
+    norm *= actionPtr->rho0(beadIndex,tailBead,1);
+    std::cout << oldAction << ", "<< newAction << ", " << norm << std::endl;
     /* Perform the metropolis test */
-    if ( random.rand() < norm*exp(-newAction + oldAction) )  {
+    if (random.rand() < norm*exp(newAction - oldAction))  {
+	    //std::cout << "Trying to keep move (Close - 7a)" << std::endl;
 	    keepMove();
 	    checkMove(1,newAction);
     }
@@ -2352,14 +2358,12 @@ void CanonicalCloseMove::keepMove() {
 
     /* update the acceptance counters */
     numAccepted++;
-    numAcceptedLevel(numLevels)++;
     totAccepted++;
 
     /* Update all the properties of the closed worm and our newly
      * diagonal configuration. */
     path.worm.reset();
     path.worm.isConfigDiagonal = true;
-    
     printMoveState("Closed up a canonical worm.");
     success = true;
 }
@@ -2369,15 +2373,20 @@ void CanonicalCloseMove::keepMove() {
 ******************************************************************************/
 void CanonicalCloseMove::undoMove() {
 
-    /* FIXME: Need to check whether this activates the bead. Switch the links back */
-    path.next(path.prev(path.worm.tail)) = path.worm.head;
-
+    /* Switch the links back */
+    /* This should reactivate the beads */ 	
+    beadLocator beadIndex;
+    beadIndex = path.prev(path.worm.tail);
+    path.next(beadIndex).fill(XXX);
+    //std::cout << "Previous of the tail" << path.prev(path.worm.tail)[0] << "," << path.prev(path.worm.tail)[1] << std::endl;
+    beadIndex = path.addNextBead(beadIndex,path(headBead));
+    path.worm.head = headBead;
     path.next(path.worm.head).fill(XXX);
     path.prev(path.worm.tail).fill(XXX);
 
     /* Make sure we register the off-diagonal configuration */
     path.worm.isConfigDiagonal = false;
-    
+    //std::cout << "Final check" << std::endl; 
     printMoveState("Failed to close up a canonical worm.");
     success = false;
 }

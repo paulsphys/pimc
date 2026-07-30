@@ -11,7 +11,7 @@
 #ifndef MOVE_H 
 #define MOVE_H
 
-/* #define DEBUG_WORM */
+#define DEBUG_WORM 
 /* #define DEBUG_MOVE */
 
 class Path;
