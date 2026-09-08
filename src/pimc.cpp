@@ -202,8 +202,9 @@ std::string PathIntegralMonteCarlo::update(const double x, const int sweep, cons
 
     /* Perform the move */
     moveName = movePtrVec[pathIdx].at(index).getName();
+    //std::cout << moveName << std::endl;
     success = movePtrVec[pathIdx].at(index).attemptMove();
-
+    //std::cout << success << std::endl;
     return moveName;
 }
 

@@ -1609,7 +1609,8 @@ bool BisectionMove::attemptMove() {
                 int n = k*shift-1;
 
                 if (include(n)) {
-                    originalPos(n) = path(beadIndex);
+		    std::cout << "Maybe here?" <<std::endl;
+		    originalPos(n) = path(beadIndex);
                     oldAction += actionPtr->potentialAction(beadIndex);
 
                     /* Generate the new position and compute the action */
@@ -2149,7 +2150,7 @@ bool CanonicalOpenMove::attemptMove() {
     /* Get the length of the proposed gap to open up. We only allow even 
      * gaps. */
     gapLength = 1;
-    
+    numLevels = int (ceil(log(1.0*gapLength) / log(2.0)-EPS));
     /* Randomly select the head bead, and make sure it is turned on, we only
      * allow the head or tail to live on even slices */
     /* THIS IS EXTREMELY IMPORTANT FOR DETAILED BALANCE */
@@ -2158,6 +2159,7 @@ bool CanonicalOpenMove::attemptMove() {
 
     //std::cout << "Is it on? " << path.worm.beadOn(headBead) << std::endl;
     /* Find the tail bead */
+    //numAttemptedLevel(numLevels)++;
     tailBead = path.next(headBead);
     //std::cout << "Found Head and Tail? (2)" << std::endl;
     /* Get the current winding number of the chosen trajectory */
@@ -2174,7 +2176,6 @@ bool CanonicalOpenMove::attemptMove() {
     /* We use the 'true' number of particles here because we are still diagonal, 
      * so it corresponds to the number of worldlines*/
     double norm = (constants()->C() * path.worm.getNumBeadsOn());
-    actionPtr->rho0(sep,gapLength);
 
     /* We rescale to take into account different attempt probabilities */
     norm *= constants()->attemptProb("canonical close")/constants()->attemptProb("canonical open");
@@ -2242,7 +2243,10 @@ void CanonicalOpenMove::keepMove() {
 ******************************************************************************/
 void CanonicalOpenMove::undoMove() {
 
-    /* Reset the worm parameters */
+    /* Reset the worm parameters */ 
+    beadLocator beadIndex;
+    beadLocator toDelete = path.next(headBead);   
+    beadIndex = path.delBeadGetPrev(toDelete);
     path.prev(tailBead) = headBead;
     path.next(headBead) = tailBead;
     path.worm.reset();
@@ -2325,17 +2329,19 @@ bool CanonicalCloseMove::attemptMove() {
     /* Generate a new new trajectory */
     oldAction = 0.5*actionPtr->barePotentialAction(headBead) + 0.5*actionPtr->barePotentialAction(tailBead);
     beadLocator beadIndex;
-    beadIndex = path.delBeadGetPrev(headBead);
+    beadIndex = path.prev(headBead);
     //std::cout << beadIndex[0] << "," << beadIndex[1] << std::endl;
     path.next(beadIndex) = tailBead;
     //std::cout << "Do I get stuck here???" << std::endl;
     path.prev(path.worm.tail) = beadIndex;
+    oldTailPos = path(path.worm.tail);
+    path.updateBead(path.next(beadIndex),newBisectionPosition(path.worm.tail,1));
     //std::cout << "Or here???" << std::endl;
 
     /* Compute the action for the new trajectory */
-    newAction = actionPtr->barePotentialAction(tailBead); 
-    norm *= actionPtr->rho0(beadIndex,tailBead,1);
-    std::cout << oldAction << ", "<< newAction << ", " << norm << std::endl;
+    newAction = actionPtr->barePotentialAction(path.next(beadIndex)); 
+    norm *= actionPtr->rho0(beadIndex,path.next(beadIndex),1);
+    //std::cout << oldAction << ", "<< newAction << ", " << norm << std::endl;
     /* Perform the metropolis test */
     if (random.rand() < norm*exp(newAction - oldAction))  {
 	    //std::cout << "Trying to keep move (Close - 7a)" << std::endl;
@@ -2362,6 +2368,9 @@ void CanonicalCloseMove::keepMove() {
 
     /* Update all the properties of the closed worm and our newly
      * diagonal configuration. */
+    beadLocator beadIndex;
+    beadIndex = path.delBeadGetPrev(headBead);
+    path.next(beadIndex) = tailBead;
     path.worm.reset();
     path.worm.isConfigDiagonal = true;
     printMoveState("Closed up a canonical worm.");
@@ -2379,8 +2388,12 @@ void CanonicalCloseMove::undoMove() {
     beadIndex = path.prev(path.worm.tail);
     path.next(beadIndex).fill(XXX);
     //std::cout << "Previous of the tail" << path.prev(path.worm.tail)[0] << "," << path.prev(path.worm.tail)[1] << std::endl;
-    beadIndex = path.addNextBead(beadIndex,path(headBead));
+    //std::cout << headBead[0] << "," << headBead[1];
+    path.next(beadIndex) = headBead;
+    path.prev(headBead) = beadIndex; 
+    //beadIndex = path.addNextBead(beadIndex,path(headBead));
     path.worm.head = headBead;
+    path.updateBead(tailBead, oldTailPos);
     path.next(path.worm.head).fill(XXX);
     path.prev(path.worm.tail).fill(XXX);
 
@@ -3707,22 +3720,21 @@ bool SwapHeadMove::attemptMove() {
 
             /* We compute the normalization factors using the head bead */
             SigmaHead = getNorm(path.worm.head);
-
             iVec wind{};
             /* Get the pivot bead and winding number sector */
             pivot = selectPivotBead(wind);
-            
             /* Now we try to find the swap bead.  If we find the worm tail, we immediatly
              * exit the move */
             beadLocator beadIndex;
             beadIndex = pivot;
             for (int k = 0; k < swapLength; k++) {
-                if (all(beadIndex, path.worm.tail))
+                if (all(beadIndex, path.worm.tail)) {
                     return false;
+		}
+		//std::cout << beadIndex[0] << ","  << beadIndex[1] << std::endl;
                 beadIndex = path.prev(beadIndex);
             }
             swap = beadIndex;
-
             /* We only continue if the swap is not the tail, and the swap and pivot
              * grid boxes coincide. */
             if ( !all(path.worm.tail, swap) && path.lookup.gridNeighbors(pivot,swap) ) {
@@ -3753,8 +3765,8 @@ bool SwapHeadMove::attemptMove() {
                     /* Mark the special beads */
                     path.worm.special1 = swap;
                     path.worm.special2 = pivot;
-
-                    /* Store the original positions */
+		    
+		    /* Store the original positions */
                     int k = 0;
                     beadIndex = swap;
                     do {
@@ -3916,6 +3928,7 @@ bool SwapTailMove::attemptMove() {
 
     /* Only perform a move if we have beads */
     if (path.worm.getNumBeadsOn() == 0) 
+	std::cout << "Does Swap Fail right away?" << std::endl;
         return success;
 
     /* We first make sure we are in an off-diagonal configuration */
@@ -3954,6 +3967,7 @@ bool SwapTailMove::attemptMove() {
             beadIndex = pivot;
             for (int k = 0; k < swapLength; k++) {
                 if (all(beadIndex, path.worm.head))
+		    std::cout << "Or does it find the head?" << std::endl;
                     return false;
                 beadIndex = path.next(beadIndex);
             }
@@ -3997,6 +4011,7 @@ bool SwapTailMove::attemptMove() {
                     beadIndex = pivot;
                     do {
                         if (!all(beadIndex, swap) && !all(beadIndex, pivot)) {
+		            std::cout << beadIndex[0] <<std::endl;
                             originalPos(k) = path(beadIndex);
                             ++k;
                         }

@@ -423,7 +423,7 @@ class CanonicalCloseMove: public MoveBase {
     private:
         beadLocator headBead,tailBead;  // The temporary head and tail slices
         int numLevels;                      // The 2^numLevels = num slices moved
-
+	dVec oldTailPos;
 	DynamicArray <int,1> oldBeadOn;        // The old and new bead states
 
         void undoMove();                // Undo a move
