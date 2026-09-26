@@ -2224,7 +2224,6 @@ bool CanonicalOpenMove::attemptMove() {
     path.worm.head = path.next(headBead);
     path.worm.special1 = path.next(headBead);
     //std::cout << path.worm.head[0] << "," << path.worm.head[1] << std::endl;
-    newAction = 0.5*actionPtr->barePotentialAction(beadIndex) + 0.5*actionPtr->barePotentialAction(tailBead); 
     /* Now we do staging */
   
     endBead = beadIndex;
@@ -2235,6 +2234,7 @@ bool CanonicalOpenMove::attemptMove() {
     }
     startBead = beadIndex;
     path.updateBead(endBead, newFreeParticlePosition(startBead,stageLength));
+    newAction = 0.5*actionPtr->barePotentialAction(beadIndex) + 0.5*actionPtr->barePotentialAction(tailBead); 
     double totalrho0;
     iVec wind;
     wind = sampleWindingSector(startBead,endBead,stageLength,totalrho0);
@@ -2396,7 +2396,7 @@ bool CanonicalCloseMove::attemptMove() {
 
   /* Compute the part of the acceptance probability that does not
    * depend on the change in potential energy */
-    double norm = 1 / (constants()->C()  *  (path.worm.getNumBeadsOn()));
+    double norm = 1 / (constants()->C()  *  (path.worm.getNumBeadsOn() - 1));
 
     /* We rescale to take into account different attempt probabilities */
     norm *= constants()->attemptProb("canonical open")/constants()->attemptProb("canonical close");
@@ -2414,14 +2414,14 @@ bool CanonicalCloseMove::attemptMove() {
     //std::cout << "Or here???" << std::endl;
 
     /* Compute the action for the new trajectory */
-    newAction = actionPtr->barePotentialAction(path.next(tailBead));
+    newAction = actionPtr->barePotentialAction(tailBead);
     endBead = tailBead;
     for (int k = 0; k < (stageLength); k++) {
         if (!path.worm.beadOn(beadIndex) || allEquals(path.prev(beadIndex), XXX))
             return false;
         beadIndex = path.prev(beadIndex);
     }
-    startBead = path.prev(beadIndex);
+    startBead = beadIndex;
 
     //double totalrho0;
     //iVec wind;
@@ -2451,7 +2451,7 @@ bool CanonicalCloseMove::attemptMove() {
     if ( !movedIntoSubRegionA ) {
         /* Get the new action for the updated path segment */
         newAction += actionPtr->potentialAction(startBead,path.prev(endBead));
-        norm *= actionPtr->rho0(startBead,path.prev(tailBead),stageLength);
+        norm *= actionPtr->rho0(startBead,tailBead,stageLength);
 
         /* The actual Metropolis test */
         if ( random.rand() < norm*exp(-(newAction-oldAction)) ) {
