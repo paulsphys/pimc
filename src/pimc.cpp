@@ -79,7 +79,11 @@ PathIntegralMonteCarlo::PathIntegralMonteCarlo (boost::ptr_vector<Path> &_pathPt
 
     numStepsAttempted = 2000*numUpdates;
     numMuAttempted = 2000*numUpdates;
-
+    	
+    if(constants()->canonicalworm()) {
+        std::cout<<numUpdates<<" , "<<numStepsAttempted<<std::endl;
+	numUpdates = 1000000;
+    }
     relaxmuMessage = false;
     relaxC0Message = false;
     equilMessage = false;
@@ -455,7 +459,6 @@ bool PathIntegralMonteCarlo::equilStepRelaxC0() {
     }
 
     for (int n = 0; n < numUpdates; n++) {
-
         /* Generate random number and run through all moves */
         double x = random.rand();
         std::string mName;
@@ -471,9 +474,8 @@ bool PathIntegralMonteCarlo::equilStepRelaxC0() {
         /* Every numStepsAttempted steps, we check the diagonal fraction and update the
          * worm constant. */
         if ( numConfig == numStepsAttempted) {
-
+	    
             double diagFrac = 1.0*numDiagonal / (1.0*numConfig);
-
             if ( (diagFrac > (targetDiagFrac-0.05)) && (diagFrac <= (targetDiagFrac+0.05)) ) {
                 std::cout << format("\nConverged on C0 = %8.5f\n\n") % constants()->C0();
                 /* for (int i = 0; i < diagFracVals.size(); i++) */ 

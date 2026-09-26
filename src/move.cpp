@@ -459,6 +459,29 @@ dVec MoveBase::newFreeParticlePosition(const beadLocator &neighborIndex) {
 }
 
 /*************************************************************************//**
+ * Generates a new position, which exactly samples the free particle
+ * density matrix.
+ *
+ * Compute a position which is selected from a guassian distribution
+ * with a mean at a bead m slices away , and variance equal to 
+ * 2 * lambda * m * tau.  
+ * @param neighborIndex the beadLocator for a mean bead
+ * @return A randomly generated position which exactly samples 1/2 the
+ * kinetic action.
+******************************************************************************/
+dVec MoveBase::newFreeParticlePosition(const beadLocator &neighborIndex, const int shift) {
+
+    PIMC_ASSERT(path.worm.beadOn(neighborIndex));
+
+    /* The Gaussian distributed random position */
+    for (int i = 0; i < NDIM; i++)
+        newRanPos[i] = random.randNorm(path(neighborIndex)[i],sqrt2LambdaTau * sqrt(shift));
+
+    path.boxPtr->putInside(newRanPos);
+
+    return newRanPos;
+}
+/*************************************************************************//**
  * Returns a new bisection position which will exactly sample the kinetic
  * action. 
  *
@@ -2119,6 +2142,12 @@ CanonicalOpenMove::CanonicalOpenMove (Path &_path, ActionBase *_actionPtr, MTRan
 
     /* Initialize private data to zero */
     numAccepted = numAttempted = numToMove = 0;
+    
+    /* Resize the original position array */
+    originalPos.resize(constants()->Mbar()-1);
+
+    /* The maximum length of a staging move */
+    stageLength = constants()->Mbar();
 }
 
 /*************************************************************************//**
@@ -2163,13 +2192,9 @@ bool CanonicalOpenMove::attemptMove() {
     tailBead = path.next(headBead);
     //std::cout << "Found Head and Tail? (2)" << std::endl;
     /* Get the current winding number of the chosen trajectory */
-    double totalrho0;
-    iVec wind;
-    wind = sampleWindingSector(headBead,tailBead,gapLength,totalrho0);
     //std::cout << "Found winding (3)" << std::endl;
     /* Determine the separation in this winding sector */
-    dVec sep;
-    sep = path(tailBead) - path(headBead) + wind*path.boxPtr->side;
+    //sep = path(tailBead) - path(headBead) + wind*path.boxPtr->side;
 
     checkMove(0,0.0);
 
@@ -2187,13 +2212,10 @@ bool CanonicalOpenMove::attemptMove() {
     numAttempted++;
     totAttempted++;
 
-    /* The temporary head and tail are special beads */
-    path.worm.special1 = headBead;
-    path.worm.special2 = tailBead;
     //std::cout << "Made beads special and incremented attempted probabilites (4)" << std::endl;
     /*Add a new bead and do a metropolis test*/
     beadLocator beadIndex;
-    oldAction = actionPtr->barePotentialAction(headBead);
+    oldAction = actionPtr->barePotentialAction(tailBead);
     //std::cout << "Got the old Action (5)" << std::endl;
     path.next(headBead).fill(XXX);
     path.prev(tailBead).fill(XXX);
@@ -2202,17 +2224,59 @@ bool CanonicalOpenMove::attemptMove() {
     path.worm.head = path.next(headBead);
     path.worm.special1 = path.next(headBead);
     //std::cout << path.worm.head[0] << "," << path.worm.head[1] << std::endl;
-    newAction = 0.5*actionPtr->barePotentialAction(beadIndex) + 0.5*actionPtr->barePotentialAction(tailBead);; 
-    norm /= actionPtr->rho0(beadIndex,headBead,gapLength);
-    if (random.rand() < norm*exp(newAction - oldAction)) {
-	    //std::cout << "Trying to keep move (7a)" << std::endl;
-	    keepMove();
-	    checkMove(1,-oldAction);
+    newAction = 0.5*actionPtr->barePotentialAction(beadIndex) + 0.5*actionPtr->barePotentialAction(tailBead); 
+    /* Now we do staging */
+  
+    endBead = beadIndex;
+    for (int k = 0; k < (stageLength); k++) {
+        if (!path.worm.beadOn(beadIndex) || allEquals(path.prev(beadIndex), XXX))
+            return false;
+        beadIndex = path.prev(beadIndex);
+    }
+    startBead = beadIndex;
+    path.updateBead(endBead, newFreeParticlePosition(startBead,stageLength));
+    double totalrho0;
+    iVec wind;
+    wind = sampleWindingSector(startBead,endBead,stageLength,totalrho0);
+
+    /* Get the current action for the path segment to be updated */
+    oldAction += actionPtr->potentialAction(startBead,path.prev(endBead));
+
+    //std::cout << "Start staging in open" << std::endl;
+    /* Perform the staging update, generating the new path and updating bead
+     * positions, while storing the old one */
+    beadIndex = startBead;
+    int k = 0;
+    //dVec pos;
+    bool movedIntoSubRegionA = false;
+    do {
+        beadIndex = path.next(beadIndex);
+        originalPos(k) = path(beadIndex);
+        path.updateBead(beadIndex,
+                newStagingPosition(path.prev(beadIndex),endBead,stageLength,k,wind));
+        if (!movedIntoSubRegionA){
+            movedIntoSubRegionA = path.inSubregionA(beadIndex);
+        }
+        ++k;
+    } while (!all(beadIndex, path.prev(endBead)));
+    //std::cout << "End staging in open" <<std::endl;
+    if ( !movedIntoSubRegionA ) {
+        /* Get the new action for the updated path segment */
+        newAction += actionPtr->potentialAction(startBead,path.prev(endBead));
+    	norm /= actionPtr->rho0(path.next(headBead),startBead,stageLength);
+
+        /* The actual Metropolis test */
+        if ( random.rand() < norm*exp(-(newAction-oldAction)) ) {
+            keepMove();
+            checkMove(1,newAction-oldAction);
+        }
+        else {
+            undoMove();
+            checkMove(2,0.0);
+        }
     }
     else {
-	    //std::cout << "Trying to get rid of move (7b)" << std::endl;
-	    undoMove();
-	    checkMove(2,0.0);
+        undoMove();
     }
     return success;
 }
@@ -2244,7 +2308,15 @@ void CanonicalOpenMove::keepMove() {
 void CanonicalOpenMove::undoMove() {
 
     /* Reset the worm parameters */ 
+    int k = 0;
     beadLocator beadIndex;
+    beadIndex = startBead;
+    do {
+        beadIndex = path.next(beadIndex);
+        path.updateBead(beadIndex,originalPos(k));
+        ++k;
+    } while (!all(beadIndex, path.prev(endBead)));
+
     beadLocator toDelete = path.next(headBead);   
     beadIndex = path.delBeadGetPrev(toDelete);
     path.prev(tailBead) = headBead;
@@ -2271,6 +2343,12 @@ CanonicalCloseMove::CanonicalCloseMove (Path &_path, ActionBase *_actionPtr,
 
     /* Initialize private data to zero */
     numAccepted = numAttempted = numToMove = 0;
+    
+    /* Resize the original position array */
+    originalPos.resize(constants()->Mbar()-1);
+
+    /* The maximum length of a staging move */
+    stageLength = constants()->Mbar();
 }
 
 /*************************************************************************//**
@@ -2332,27 +2410,62 @@ bool CanonicalCloseMove::attemptMove() {
     beadIndex = path.prev(headBead);
     //std::cout << beadIndex[0] << "," << beadIndex[1] << std::endl;
     path.next(beadIndex) = tailBead;
-    //std::cout << "Do I get stuck here???" << std::endl;
     path.prev(path.worm.tail) = beadIndex;
-    oldTailPos = path(path.worm.tail);
-    path.updateBead(path.next(beadIndex),newBisectionPosition(path.worm.tail,1));
     //std::cout << "Or here???" << std::endl;
 
     /* Compute the action for the new trajectory */
-    newAction = actionPtr->barePotentialAction(path.next(beadIndex)); 
-    norm *= actionPtr->rho0(beadIndex,path.next(beadIndex),1);
-    //std::cout << oldAction << ", "<< newAction << ", " << norm << std::endl;
-    /* Perform the metropolis test */
-    if (random.rand() < norm*exp(newAction - oldAction))  {
-	    //std::cout << "Trying to keep move (Close - 7a)" << std::endl;
-	    keepMove();
-	    checkMove(1,newAction);
+    newAction = actionPtr->barePotentialAction(path.next(tailBead));
+    endBead = tailBead;
+    for (int k = 0; k < (stageLength); k++) {
+        if (!path.worm.beadOn(beadIndex) || allEquals(path.prev(beadIndex), XXX))
+            return false;
+        beadIndex = path.prev(beadIndex);
+    }
+    startBead = path.prev(beadIndex);
+
+    //double totalrho0;
+    //iVec wind;
+    wind = sampleWindingSector(startBead,endBead,stageLength,totalrho0);
+
+    /* Get the current action for the path segment to be updated */
+    oldAction += actionPtr->potentialAction(startBead,path.prev(endBead));
+
+
+    /* Perform the staging update, generating the new path and updating bead
+     * positions, while storing the old one */
+    beadIndex = startBead;
+    int k = 0;
+    //dVec pos;
+    bool movedIntoSubRegionA = false;
+    do {
+        beadIndex = path.next(beadIndex);
+        originalPos(k) = path(beadIndex);
+        path.updateBead(beadIndex,
+                newStagingPosition(path.prev(beadIndex),endBead,stageLength,k,wind));
+        if (!movedIntoSubRegionA){
+            movedIntoSubRegionA = path.inSubregionA(beadIndex);
+        }
+        ++k;
+    } while (!all(beadIndex, path.prev(endBead)));
+
+    if ( !movedIntoSubRegionA ) {
+        /* Get the new action for the updated path segment */
+        newAction += actionPtr->potentialAction(startBead,path.prev(endBead));
+        norm *= actionPtr->rho0(startBead,path.prev(tailBead),stageLength);
+
+        /* The actual Metropolis test */
+        if ( random.rand() < norm*exp(-(newAction-oldAction)) ) {
+            keepMove();
+            checkMove(1,newAction-oldAction);
+        }
+        else {
+            undoMove();
+            checkMove(2,0.0);
+        }
     }
     else {
-	    undoMove();
-	    checkMove(2,0.0);
+        undoMove();
     }
-
     return success;
 }
 
@@ -2384,7 +2497,14 @@ void CanonicalCloseMove::undoMove() {
 
     /* Switch the links back */
     /* This should reactivate the beads */ 	
+    int k = 0;
     beadLocator beadIndex;
+    beadIndex = startBead;
+    do {
+        beadIndex = path.next(beadIndex);
+        path.updateBead(beadIndex,originalPos(k));
+        ++k;
+    } while (!all(beadIndex, path.prev(endBead)));
     beadIndex = path.prev(path.worm.tail);
     path.next(beadIndex).fill(XXX);
     //std::cout << "Previous of the tail" << path.prev(path.worm.tail)[0] << "," << path.prev(path.worm.tail)[1] << std::endl;
@@ -2393,7 +2513,6 @@ void CanonicalCloseMove::undoMove() {
     path.prev(headBead) = beadIndex; 
     //beadIndex = path.addNextBead(beadIndex,path(headBead));
     path.worm.head = headBead;
-    path.updateBead(tailBead, oldTailPos);
     path.next(path.worm.head).fill(XXX);
     path.prev(path.worm.tail).fill(XXX);
 

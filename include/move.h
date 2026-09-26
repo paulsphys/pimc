@@ -11,7 +11,7 @@
 #ifndef MOVE_H 
 #define MOVE_H
 
-#define DEBUG_WORM 
+/* #define DEBUG_WORM */
 /* #define DEBUG_MOVE */
 
 class Path;
@@ -131,6 +131,7 @@ class MoveBase {
 
         /* Return a new bead position which samples the free particle density matrix */
         dVec newFreeParticlePosition(const beadLocator &);
+        dVec newFreeParticlePosition(const beadLocator &, const int);
 
         /* Returns a new bead position based on the bisection algorithm */
         dVec newBisectionPosition(const beadLocator&, const int);   
@@ -394,12 +395,14 @@ class CanonicalOpenMove: public MoveBase {
 
     private:
         beadLocator headBead, tailBead; // The temporary head and tail locatores
+        beadLocator startBead,endBead; // The start and end of the stage
         int gapLength;                  // The proposed WL length to remove 
         int numLevels;                  // The 2^numLevels = num slices moved
 
         void undoMove();                // Undo a move
         void keepMove();                // keep the move
 
+        int stageLength;                    // The length of the stage
 };
 
 // ========================================================================  
@@ -422,12 +425,14 @@ class CanonicalCloseMove: public MoveBase {
 
     private:
         beadLocator headBead,tailBead;  // The temporary head and tail slices
+        beadLocator startBead,endBead; // The start and end of the stage
         int numLevels;                      // The 2^numLevels = num slices moved
 	dVec oldTailPos;
 	DynamicArray <int,1> oldBeadOn;        // The old and new bead states
 
         void undoMove();                // Undo a move
         void keepMove();                // keep the move
+        int stageLength;                    // The length of the stage
 };
 // ========================================================================  
 // Insert Move Class 
