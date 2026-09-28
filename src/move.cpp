@@ -2416,13 +2416,17 @@ bool CanonicalCloseMove::attemptMove() {
     /* Compute the action for the new trajectory */
     newAction = actionPtr->barePotentialAction(tailBead);
     endBead = tailBead;
+    beadIndex = endBead;
     for (int k = 0; k < (stageLength); k++) {
-        if (!path.worm.beadOn(beadIndex) || allEquals(path.prev(beadIndex), XXX))
-            return false;
+        if (!path.worm.beadOn(beadIndex) || allEquals(path.prev(beadIndex), XXX)) {
+	    std::cout << "Is it triggered?" << std::endl;
+            return false; }
         beadIndex = path.prev(beadIndex);
     }
     startBead = beadIndex;
 
+    path.next(beadIndex) = tailBead;
+    path.prev(path.worm.tail) = beadIndex;
     //double totalrho0;
     //iVec wind;
     wind = sampleWindingSector(startBead,endBead,stageLength,totalrho0);
