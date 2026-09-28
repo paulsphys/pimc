@@ -2234,7 +2234,7 @@ bool CanonicalOpenMove::attemptMove() {
     }
     startBead = beadIndex;
     path.updateBead(endBead, newFreeParticlePosition(startBead,stageLength));
-    newAction = 0.5*actionPtr->barePotentialAction(beadIndex) + 0.5*actionPtr->barePotentialAction(tailBead); 
+    newAction = 0.5*actionPtr->barePotentialAction(endBead) + 0.5*actionPtr->barePotentialAction(tailBead); 
     double totalrho0;
     iVec wind;
     wind = sampleWindingSector(startBead,endBead,stageLength,totalrho0);
