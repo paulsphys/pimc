@@ -2237,7 +2237,7 @@ bool CanonicalOpenMove::attemptMove() {
     newAction = 0.5*actionPtr->barePotentialAction(endBead) + 0.5*actionPtr->barePotentialAction(tailBead); 
     double totalrho0;
     iVec wind;
-    wind = sampleWindingSector(startBead,endBead,stageLength,totalrho0);
+    wind = sampleWindingSector(startBead,tailBead,stageLength,totalrho0);
 
     /* Get the current action for the path segment to be updated */
     oldAction += actionPtr->potentialAction(startBead,path.prev(endBead));
@@ -2263,7 +2263,7 @@ bool CanonicalOpenMove::attemptMove() {
     if ( !movedIntoSubRegionA ) {
         /* Get the new action for the updated path segment */
         newAction += actionPtr->potentialAction(startBead,path.prev(endBead));
-    	norm /= actionPtr->rho0(path.next(headBead),startBead,stageLength);
+    	norm /= totalrho0;
 
         /* The actual Metropolis test */
         if ( random.rand() < norm*exp(-(newAction-oldAction)) ) {
@@ -2392,7 +2392,6 @@ bool CanonicalCloseMove::attemptMove() {
     /* Sample the winding sector */
     double totalrho0;
     iVec wind;
-    wind = sampleWindingSector(headBead,tailBead,path.worm.gap,totalrho0);
 
   /* Compute the part of the acceptance probability that does not
    * depend on the change in potential energy */
@@ -2424,12 +2423,10 @@ bool CanonicalCloseMove::attemptMove() {
         beadIndex = path.prev(beadIndex);
     }
     startBead = beadIndex;
+    wind = sampleWindingSector(startBead,tailBead,stageLength,totalrho0);
 
-    path.next(beadIndex) = tailBead;
-    path.prev(path.worm.tail) = beadIndex;
     //double totalrho0;
     //iVec wind;
-    wind = sampleWindingSector(startBead,endBead,stageLength,totalrho0);
 
     /* Get the current action for the path segment to be updated */
     oldAction += actionPtr->potentialAction(startBead,path.prev(endBead));
@@ -2455,7 +2452,7 @@ bool CanonicalCloseMove::attemptMove() {
     if ( !movedIntoSubRegionA ) {
         /* Get the new action for the updated path segment */
         newAction += actionPtr->potentialAction(startBead,path.prev(endBead));
-        norm *= actionPtr->rho0(startBead,tailBead,stageLength);
+        norm *= totalrho0;
 
         /* The actual Metropolis test */
         if ( random.rand() < norm*exp(-(newAction-oldAction)) ) {
